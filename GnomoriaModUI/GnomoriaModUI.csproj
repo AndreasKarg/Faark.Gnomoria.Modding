@@ -171,7 +171,7 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>"D:\Programme_8\Microsoft Visual Studio 11.0\VC\bin\amd64\editbin.exe" /LARGEADDRESSAWARE "$(TargetPath)"
+    <PostBuildEvent>
 </PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
