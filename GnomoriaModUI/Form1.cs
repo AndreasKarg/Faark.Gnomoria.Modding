@@ -321,12 +321,13 @@ namespace GnomoriaModUI
         }
         private void DoStuff_LaunchWithMods()
         {
-            var currentApp = new System.IO.FileInfo(Assembly.GetExecutingAssembly().Location);
+            /*var currentApp = new System.IO.FileInfo(Assembly.GetExecutingAssembly().Location);
             var launcherProcess = new System.Diagnostics.Process();
             launcherProcess.StartInfo.FileName = currentApp.FullName;
             launcherProcess.StartInfo.WorkingDirectory = Environment.CurrentDirectory;
             launcherProcess.StartInfo.Arguments = "-launch";
-            launcherProcess.Start();
+            launcherProcess.Start();*/
+            GameLauncher.Run();
             /*
             var gameProcess = new System.Diagnostics.Process();
             gameProcess.StartInfo.FileName = ModManager.GameDirectory.ContainingFile(ModManager.ModdedExecutable).FullName;

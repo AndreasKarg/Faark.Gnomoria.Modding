@@ -78,6 +78,8 @@ namespace GnomoriaModUI
             {
                 var instructions = commands.ToList();
 
+                // Todo: Refactor this.
+
                 /*
                  * following stuff is from http://eatplayhate.wordpress.com/2010/07/18/mono-cecil-vs-obfuscation-fight/
                  * and should redirect jumps?!
@@ -210,6 +212,13 @@ namespace GnomoriaModUI
             }
             return md;
         }
+
+        /// <summary>
+        /// Converts a type reference to an actual type.
+        /// -> Make this an extension method?
+        /// </summary>
+        /// <param name="self"></param>
+        /// <returns></returns>
         protected static Type Helper_TypeReference_to_Type(TypeReference self)
         {
             var method_name = self.FullName;
@@ -752,7 +761,7 @@ namespace GnomoriaModUI
         {
             if (modification == null)
             {
-                throw new Exception("Modification is null.");
+                throw new Exception("Modification is null."); // TODO: Use ArgumentNullException
             }
             else if (modification is Faark.Gnomoria.Modding.MethodHook)
             {
@@ -1062,6 +1071,7 @@ namespace GnomoriaModUI
         }
         public void Inject_SetContentRootDirectoryToCurrentDir_InsertAtStartOfMain()
         {
+            // TODO: Find out why this is needed.
             var meth = Assembly.EntryPoint;
             var il = meth.Body.GetILProcessor();
 

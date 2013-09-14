@@ -100,6 +100,7 @@ namespace GnomoriaModUI
                 ProcessMod(mod);
             }
 
+            // This appears to sort the processed mods by their dependencies and generates an assembly load order from them.
             var allLoadedStuff = processedMods.Select(mod => Tuple.Create(mod, mod.Dependencies.Union(mod.InitAfter.Where(befor => processedMods.Contains(befor.GetInstance()))).Select(type => type.GetInstance())));
             var processedMods_sortedByDependencyAndInitAfter = DependencySort.Sort(allLoadedStuff);
 
