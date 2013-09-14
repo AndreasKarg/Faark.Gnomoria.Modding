@@ -14,7 +14,7 @@ namespace GnomoriaModUI
             public void runGame()
             {
                 //throw new Exception("LOGGING IS OFF!");
-                base_dir = new System.IO.FileInfo(System.Reflection.Assembly.GetExecutingAssembly().Location).Directory.FullName;
+                base_dir = Environment.CurrentDirectory;
                 AppDomain.CurrentDomain.AssemblyResolve += new ResolveEventHandler(CurrentDomain_AssemblyResolve);
                 AppDomain.CurrentDomain.UnhandledException += new UnhandledExceptionEventHandler(CurrentDomain_UnhandledException);
                 var os = System.Environment.OSVersion;
