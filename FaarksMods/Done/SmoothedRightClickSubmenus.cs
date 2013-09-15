@@ -1,13 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Reflection;
 using Faark.Gnomoria.Modding;
-using Game;
-using Game.GUI;
 using Game.GUI.Controls;
-using GameLibrary;
 using Microsoft.Xna.Framework;
 
 namespace Faark.Gnomoria.Mods
@@ -23,7 +18,7 @@ namespace Faark.Gnomoria.Mods
             {
                 return new IModification[]{
                     new MethodHook(
-                        typeof(ContextMenu).GetMethod("Show", new Type[] { typeof(Control), typeof(int), typeof(int) }),
+                        typeof(ContextMenu).GetMethod("Show", new[] { typeof(Control), typeof(int), typeof(int) }),
                         Method.Of<ContextMenu, Control, int, int>(ContextMenu_Show)
                         ),
                     new MethodHook(
@@ -43,6 +38,7 @@ namespace Faark.Gnomoria.Mods
                 };
             }
         }
+
         public override string Author
         {
             get
@@ -50,6 +46,7 @@ namespace Faark.Gnomoria.Mods
                 return "Faark";
             }
         }
+
         public override string Description
         {
             get
@@ -58,42 +55,41 @@ namespace Faark.Gnomoria.Mods
             }
         }
 
-        private static MethodInfo ContextMenu_OnMouseMoveFunc;
-        private static MethodInfo ContextMenu_OnClickFunc;
-        private static PropertyInfo MenuBase_ParentMenu;
+        private static MethodInfo _contextMenuOnMouseMoveFunc;
+        private static PropertyInfo _menuBaseParentMenu;
         private class MoveTowardsVaildater
         {
-            public Point UpperBound;
-            public Point LowerBound;
+            public readonly Point UpperBound;
+            public readonly Point LowerBound;
 
             public Point LastPos;
-            public MoveTowardsVaildater(Rectangle target_rect, Point abs_mouse_position)
+            public MoveTowardsVaildater(Rectangle targetRect, Point absMousePosition)
             {
-                var xpos = abs_mouse_position.X < target_rect.Left ? target_rect.Left : target_rect.Right;
-                UpperBound = new Point(xpos, target_rect.Top);
-                LowerBound = new Point(xpos, target_rect.Bottom);
+                var xpos = absMousePosition.X < targetRect.Left ? targetRect.Left : targetRect.Right;
+                UpperBound = new Point(xpos, targetRect.Top);
+                LowerBound = new Point(xpos, targetRect.Bottom);
 
-                LastPos = abs_mouse_position;
+                LastPos = absMousePosition;
             }
 
-            private float Sign(Point p1, Point p2, Point p3)
+            private static float Sign(Point p1, Point p2, Point p3)
             {
                 return (p1.X - p3.X) * (p2.Y - p3.Y) - (p2.X - p3.X) * (p1.Y - p3.Y);
             }
-            private bool IsPointInTri(Point pt, Point v1, Point v2, Point v3)
-            {
-                bool b1, b2, b3;
 
-                b1 = Sign(pt, v1, v2) < 0.0f;
-                b2 = Sign(pt, v2, v3) < 0.0f;
-                b3 = Sign(pt, v3, v1) < 0.0f;
+            private static bool IsPointInTri(Point pt, Point v1, Point v2, Point v3)
+            {
+                bool b1 = Sign(pt, v1, v2) < 0.0f;
+                bool b2 = Sign(pt, v2, v3) < 0.0f;
+                bool b3 = Sign(pt, v3, v1) < 0.0f;
 
                 return ((b1 == b2) && (b2 == b3));
             }
-            public bool IsMovingTowards(Point abs_mouse_position)
+
+            public bool IsMovingTowards(Point absMousePosition)
             {
-                var ret = IsPointInTri(abs_mouse_position, UpperBound, LowerBound, LastPos);
-                LastPos = abs_mouse_position;
+                var ret = IsPointInTri(absMousePosition, UpperBound, LowerBound, LastPos);
+                LastPos = absMousePosition;
                 /*if (Math.Abs(XPos - abs_mouse_position.X) < Math.Abs(XPos - LastPos.X))
                 {
                     var moved_distance = new Point(LastPos.X - abs_mouse_position.X, LastPos.Y - abs_mouse_position.Y);
@@ -104,78 +100,75 @@ namespace Faark.Gnomoria.Mods
                 return ret;
             }
         }
-        private static ContextMenu LastOpenedContextMenu = null;
-        private static ContextMenu LastOpeningMenu = null;
-        private static MoveTowardsVaildater LastOpenedMoveValidater;
-        private static Point LastMousePosition;
-        private static DateTime OpenMenuWhenMouseStandingUntil;
-        private static MouseEventArgs LastMouseEventArgs;
+        private static ContextMenu _lastOpenedContextMenu;
+        private static ContextMenu _lastOpeningMenu;
+        private static MoveTowardsVaildater _lastOpenedMoveValidater;
+        private static Point _lastMousePosition;
+        private static DateTime _openMenuWhenMouseStandingUntil;
+        private static MouseEventArgs _lastMouseEventArgs;
+
         public override void Initialize_PreGame()
         {
-            MenuBase_ParentMenu = typeof(MenuBase).GetProperty("ParentMenu", BindingFlags.Instance | BindingFlags.NonPublic);
-            ContextMenu_OnMouseMoveFunc = typeof(ContextMenu).GetMethod("OnMouseMove", BindingFlags.Instance | BindingFlags.NonPublic);
-            ContextMenu_OnClickFunc = typeof(ContextMenu).GetMethod("OnClick", BindingFlags.Instance | BindingFlags.NonPublic);
+            _menuBaseParentMenu = typeof(MenuBase).GetProperty("ParentMenu", BindingFlags.Instance | BindingFlags.NonPublic);
+            _contextMenuOnMouseMoveFunc = typeof(ContextMenu).GetMethod("OnMouseMove", BindingFlags.Instance | BindingFlags.NonPublic);
         }
+
         public static void ContextMenu_Show(ContextMenu self, Control sender, int x, int y)
         {
-            LastOpenedContextMenu = self;
-            LastOpenedMoveValidater = new MoveTowardsVaildater(self.AbsoluteRect, LastMousePosition);
-            OpenMenuWhenMouseStandingUntil = DateTime.MaxValue;
-            LastOpeningMenu = (ContextMenu)MenuBase_ParentMenu.GetValue(self, new object[] { });
+            _lastOpenedContextMenu = self;
+            _lastOpenedMoveValidater = new MoveTowardsVaildater(self.AbsoluteRect, _lastMousePosition);
+            _openMenuWhenMouseStandingUntil = DateTime.MaxValue;
+            _lastOpeningMenu = (ContextMenu)_menuBaseParentMenu.GetValue(self, new object[] { });
 
             //RuntimeModController.WriteLogO(self, LastOpeningMenu);
             //LastOpenedMenuRect = self.AbsoluteRect;
         }
+
         public static bool ContextMenu_OnMouseMove(ContextMenu self, MouseEventArgs args)
         {
-            LastMouseEventArgs = args;
-            var current_mouse_pos = LastMousePosition = new Point(self.AbsoluteLeft + args.Position.X, self.AbsoluteTop + args.Position.Y);
-            if (LastOpenedContextMenu != null)
+            _lastMouseEventArgs = args;
+            var currentMousePos = _lastMousePosition = new Point(self.AbsoluteLeft + args.Position.X, self.AbsoluteTop + args.Position.Y);
+
+            if (_lastOpenedContextMenu == null) return false;
+            if (_lastOpenedContextMenu == self) return false;
+
+            if (_lastOpenedMoveValidater.LastPos == currentMousePos)
             {
-                if (LastOpenedContextMenu != self)
-                {
-                    if (LastOpenedMoveValidater.LastPos == current_mouse_pos)
-                    {
-                        //should only happen if called by our update-hack...
-                    }
-                    else if (LastOpenedMoveValidater.IsMovingTowards(current_mouse_pos))
-                    {
-                        //RuntimeModController.WriteScreen("Skipped, " + DateTime.Now.Ticks);
-                        OpenMenuWhenMouseStandingUntil = DateTime.Now + TimeSpan.FromMilliseconds(100);
+                //should only happen if called by our update-hack...
+            }
+            else if (_lastOpenedMoveValidater.IsMovingTowards(currentMousePos))
+            {
+                //RuntimeModController.WriteScreen("Skipped, " + DateTime.Now.Ticks);
+                _openMenuWhenMouseStandingUntil = DateTime.Now + TimeSpan.FromMilliseconds(100);
 
-                        return true;
-                    }
-
-                }
+                return true;
             }
             //RuntimeModController.WriteScreen(null, "Passed, " + DateTime.Now.Ticks);
             return false;
         }
+
         public static void ContextMenu_OnMouseOut(ContextMenu self, MouseEventArgs args)
         {
-            if (LastOpeningMenu == self)
-            {
-                //RuntimeModController.WriteScreen(null, null, null, "Out, " + DateTime.Now.Ticks);
-                LastOpenedContextMenu = null;
-                LastOpeningMenu = null;
-            }
+            if (_lastOpeningMenu != self) return;
+
+            //RuntimeModController.WriteScreen(null, null, null, "Out, " + DateTime.Now.Ticks);
+            _lastOpenedContextMenu = null;
+            _lastOpeningMenu = null;
         }
+
         public static void ContextMenu_Update(ContextMenu self, GameTime gt)
         {
-            if ((LastOpenedContextMenu != null) && (LastOpeningMenu == self))
-            {
-                if (DateTime.Now > OpenMenuWhenMouseStandingUntil)
-                {
-                    //RuntimeModController.WriteLogO("CLICKING", self);
+            if ((_lastOpenedContextMenu == null) || (_lastOpeningMenu != self)) return;
+            if (DateTime.Now <= _openMenuWhenMouseStandingUntil) return;
 
-                    ContextMenu_OnMouseMoveFunc.Invoke(self, new object[] { LastMouseEventArgs });
-                    ContextMenu_OnMouseMoveFunc.Invoke(self, new object[] { LastMouseEventArgs });
-                    //ContextMenu_OnClickFunc.Invoke(self, new object[] { new MouseEventArgs(default(Microsoft.Xna.Framework.Input.MouseState), MouseButton.None, 0, Point.Zero) });
-                    //RuntimeModController.WriteScreen(null, null, "Timeclick, " + DateTime.Now.Ticks);
+            //RuntimeModController.WriteLogO("CLICKING", self);
 
-                    OpenMenuWhenMouseStandingUntil = DateTime.MaxValue;
-                }
-            }
+            _contextMenuOnMouseMoveFunc.Invoke(self, new object[] { _lastMouseEventArgs });
+            _contextMenuOnMouseMoveFunc.Invoke(self, new object[] { _lastMouseEventArgs });
+            //ContextMenu_OnClickFunc.Invoke(self, new object[] { new MouseEventArgs(default(Microsoft.Xna.Framework.Input.MouseState), MouseButton.None, 0, Point.Zero) });
+            //RuntimeModController.WriteScreen(null, null, "Timeclick, " + DateTime.Now.Ticks);
+
+            _openMenuWhenMouseStandingUntil = DateTime.MaxValue;
         }
     }
 }
