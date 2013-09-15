@@ -3,12 +3,7 @@
 
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Reflection;
 using System.Runtime.Serialization;
-using System.Xml.Serialization;
 using System.IO;
 using Faark.Util;
 
@@ -46,37 +41,36 @@ namespace Faark.Gnomoria.Modding
         [DataMember]
         public bool ClearLogsOnRebuild { get; protected set; }
 
-        private HashData mHashes;
+        private HashData _hashes;
         [DataMember]
         public HashData Hashes
         {
             get
             {
-                return mHashes ?? (mHashes = new HashData());
+                return _hashes ?? (_hashes = new HashData());
             }
             private set
             {
-                mHashes = value;
+                _hashes = value;
             }
         }
 
-        private ModReference[] mModReferences;
+        private ModReference[] _modReferences;
         [DataMember(Name = "Mods")]
         public ModReference[] ModReferences {
             get
             {
-                return mModReferences ?? (mModReferences = new ModReference[0]);
+                return _modReferences ?? (_modReferences = new ModReference[0]);
             }
             protected set
             {
-                mModReferences = value;
+                _modReferences = value;
             }
         }
 
-
-        public static ModEnvironmentConfiguration Load(System.IO.FileInfo xmlConfigFile)
+        public static ModEnvironmentConfiguration Load(FileInfo xmlConfigFile)
         {
-            var dcserializer = new System.Runtime.Serialization.DataContractSerializer(typeof(ModEnvironmentConfiguration));
+            var dcserializer = new DataContractSerializer(typeof(ModEnvironmentConfiguration));
             //var serializer = new System.Xml.Serialization.XmlSerializer(typeof(ModEnvironmentConfiguration));
             using (var fstream = xmlConfigFile.OpenRead())
             {
@@ -84,15 +78,15 @@ namespace Faark.Gnomoria.Modding
                 return mec;
             }
         }
-        protected static void Save(ModEnvironmentConfiguration self, System.IO.FileInfo xmlConfigFile)
+
+        protected static void Save(ModEnvironmentConfiguration self, FileInfo xmlConfigFile)
         {
             // http://stackoverflow.com/questions/2129414/how-to-insert-xml-comments-in-xml-serialization
 
-
-            var dcserializer = new System.Runtime.Serialization.DataContractSerializer(typeof(ModEnvironmentConfiguration));
+            var dcserializer = new DataContractSerializer(typeof(ModEnvironmentConfiguration));
             //var serializer = new System.Xml.Serialization.XmlSerializer(typeof(ModEnvironmentConfiguration));
-            using (var wstream = xmlConfigFile.Open(System.IO.FileMode.Create))
-            using (var writer = System.Xml.XmlWriter.Create(wstream, new System.Xml.XmlWriterSettings() { Indent = true }))
+            using (var wstream = xmlConfigFile.Open(FileMode.Create))
+            using (var writer = System.Xml.XmlWriter.Create(wstream, new System.Xml.XmlWriterSettings { Indent = true }))
             {
                 writer.WriteStartDocument();
                 writer.WriteComment("DO NOT CHANGE ANYTHING IN THIS FILE WITHOUT DELETING GnomoriaModded.exe!");//\nThis will make the EXE be recreated, since otherwise the game will crash.
@@ -103,11 +97,12 @@ namespace Faark.Gnomoria.Modding
                 writer.Close();
             }
         }
+
         public bool CheckFilesValid(
-            FileInfo source_exe,
-            FileInfo modded_exe,
-            FileInfo source_lib,
-            FileInfo modded_lib
+            FileInfo sourceExe,
+            FileInfo moddedExe,
+            FileInfo sourceLib,
+            FileInfo moddedLib
             )
             //System.IO.DirectoryInfo base_directoy, String source_exe_name, String modded_exe_name)
         {
@@ -116,14 +111,14 @@ namespace Faark.Gnomoria.Modding
                 && (Hashes.ModdedExecutable != null)
                 && (Hashes.SourceLibrary != null)
                 && (Hashes.ModdedLibrary != null)
-                && source_exe.Exists
-                && source_lib.Exists
-                && modded_exe.Exists
-                && modded_lib.Exists
-                && (source_exe.GenerateMD5Hash() == Hashes.SourceExecutable)
-                && (modded_exe.GenerateMD5Hash() == Hashes.ModdedExecutable)
-                && (source_lib.GenerateMD5Hash() == Hashes.SourceLibrary)
-                && (modded_lib.GenerateMD5Hash() == Hashes.ModdedLibrary);
+                && sourceExe.Exists
+                && sourceLib.Exists
+                && moddedExe.Exists
+                && moddedLib.Exists
+                && (sourceExe.GenerateMD5Hash() == Hashes.SourceExecutable)
+                && (moddedExe.GenerateMD5Hash() == Hashes.ModdedExecutable)
+                && (sourceLib.GenerateMD5Hash() == Hashes.SourceLibrary)
+                && (moddedLib.GenerateMD5Hash() == Hashes.ModdedLibrary);
 
             /*var source_exe = base_directoy.GetFiles().Single(file => file.Name.ToUpper() == source_exe_name.ToUpper());
             var modded_exe = base_directoy.GetFiles().SingleOrDefault(file => file.Name.ToUpper() == modded_exe_name.ToUpper());
@@ -136,11 +131,12 @@ namespace Faark.Gnomoria.Modding
 
         public ModEnvironmentConfiguration(ModEnvironmentConfiguration from)
         {
-            mHashes = new HashData(from.Hashes);
+            _hashes = new HashData(from.Hashes);
             ModReferences = from.ModReferences;
             ClearLogsOnRebuild = from.ClearLogsOnRebuild;
             GraphicsProfile = from.GraphicsProfile;
         }
+
         protected ModEnvironmentConfiguration()
         {
             GraphicsProfile = Microsoft.Xna.Framework.Graphics.GraphicsProfile.Reach;
