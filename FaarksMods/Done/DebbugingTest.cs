@@ -1,8 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using System.Diagnostics;
 
 // This stuff makes your mod-dll live-editable while debugging it via you debug-launcher. Does not always work perfect, though.
-[assembly: System.Diagnostics.Debuggable(System.Diagnostics.DebuggableAttribute.DebuggingModes.Default | System.Diagnostics.DebuggableAttribute.DebuggingModes.DisableOptimizations | System.Diagnostics.DebuggableAttribute.DebuggingModes.IgnoreSymbolStoreSequencePoints | System.Diagnostics.DebuggableAttribute.DebuggingModes.EnableEditAndContinue)]
+[assembly: Debuggable(
+      DebuggableAttribute.DebuggingModes.Default
+    | DebuggableAttribute.DebuggingModes.DisableOptimizations
+    | DebuggableAttribute.DebuggingModes.IgnoreSymbolStoreSequencePoints
+    | DebuggableAttribute.DebuggingModes.EnableEditAndContinue)
+]
 
