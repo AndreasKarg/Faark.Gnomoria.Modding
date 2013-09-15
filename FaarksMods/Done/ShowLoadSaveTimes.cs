@@ -1,17 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Reflection;
-using System.Runtime.Serialization;
 using System.Threading.Tasks;
 using Faark.Gnomoria.Modding;
 using Game;
-using Game.GUI;
-using Game.GUI.Controls;
-using GameLibrary;
-using Faark.Util;
-using Microsoft.Xna.Framework;
 
 namespace Faark.Gnomoria.Mods
 {
@@ -65,31 +56,36 @@ namespace Faark.Gnomoria.Mods
                 return "Displays how long it took to save & load a game.";
             }
         }
-        private static DateTime LoadStart;
-        private static DateTime LoadEnd;
+
+        private static DateTime _loadStart;
+        private static DateTime _loadEnd;
+
         public static void OnBefore_GnomanEmpire_LoadGame(GnomanEmpire self, string file, bool fallen)
         {
-            LoadStart = DateTime.Now;
+            _loadStart = DateTime.Now;
         }
+
         public static void OnAfter_GnomanEmpire_LoadGame(GnomanEmpire self, string file, bool fallen)
         {
-            LoadEnd = DateTime.Now;
+            _loadEnd = DateTime.Now;
         }
+
         public static void On_GnomanEmpire_FinishLoadingGame(GnomanEmpire self)
         {
-            GnomanEmpire.Instance.World.NotificationManager.AddNotification("Game loaded within " + (LoadEnd - LoadStart).TotalSeconds.ToString("0.00") + " sec", false);
+            GnomanEmpire.Instance.World.NotificationManager.AddNotification("Game loaded within " + (_loadEnd - _loadStart).TotalSeconds.ToString("0.00") + " sec", false);
         }
-        private static DateTime SaveStart;
+
+        private static DateTime _saveStart;
         public static void OnBefore_GnomanEmpire_SaveGame(GnomanEmpire self, bool fallen)
         {
-            SaveStart = DateTime.Now;
+            _saveStart = DateTime.Now;
         }
+
         public static Task OnAfter_GnomanEmpire_SaveGame(Task result, GnomanEmpire self, bool fallen)
         {
-            return result.ContinueWith((task) =>
-            {
-                GnomanEmpire.Instance.World.NotificationManager.AddNotification("Game saved within " + (DateTime.Now - SaveStart).TotalSeconds.ToString("0.00") + " sec", false);
-            });
+            return result.ContinueWith(task =>
+                GnomanEmpire.Instance.World.NotificationManager.AddNotification("Game saved within " + (DateTime.Now - _saveStart).TotalSeconds.ToString("0.00") + " sec", false)
+            );
         }
     }
 #endif
