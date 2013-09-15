@@ -1,19 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-
-namespace GnomoriaModUI
+﻿namespace GnomoriaModUI
 {
-    class ModManager
+    internal static class ModManager
     {
-        public const string config_file_name = "GnomoriaModConfig.xml";
+        public const string ConfigFileName = "GnomoriaModConfig.xml";
         public const string OriginalExecutable = "Gnomoria.exe";
         public const string ModdedExecutable = "GnomoriaModded.dll";
         public const string OriginalLibrary = "gnomorialib.dll";
         public const string ModdedLibrary = "gnomorialibModded.dll";
         public const string ModController = "GnomoriaModController.dll";
-        public static readonly string[] Dependencies = new string[] { /*"GnomoriaModController.dll", */"Gnomoria.exe", "gnomorialib.dll", "SevenZipSharp.dll" };
-        public static System.IO.DirectoryInfo GameDirectory = new System.IO.DirectoryInfo(System.IO.Directory.GetCurrentDirectory());
+        public static readonly string[] Dependencies = { /*"GnomoriaModController.dll", */"Gnomoria.exe", "gnomorialib.dll", "SevenZipSharp.dll" };
+        public static readonly System.IO.DirectoryInfo GameDirectory = new System.IO.DirectoryInfo(System.IO.Directory.GetCurrentDirectory());
     }
 }

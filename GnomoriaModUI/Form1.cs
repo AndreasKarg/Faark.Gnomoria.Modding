@@ -153,7 +153,7 @@ namespace GnomoriaModUI
         {
             try
             {
-                current_config = ModdingEnvironmentConfiguration.LoadOrCreate(ModManager.GameDirectory.ContainingFile(ModManager.config_file_name));
+                current_config = ModdingEnvironmentConfiguration.LoadOrCreate(ModManager.GameDirectory.ContainingFile(ModManager.ConfigFileName));
             }
             catch (Exception err)
             {
@@ -315,7 +315,7 @@ namespace GnomoriaModUI
                     found_valid_mods_data.Where(el => (el.Item3 == null) || !((bool)el.Item3.ItemArray[1])).Select(el => el.Item1).ToArray(),
                     false
                     );
-                newModConfig.SaveEnvironmentConfiguration(ModManager.GameDirectory.ContainingFile(ModManager.config_file_name));
+                newModConfig.SaveEnvironmentConfiguration(ModManager.GameDirectory.ContainingFile(ModManager.ConfigFileName));
                 is_build_required = false;
             });
         }
