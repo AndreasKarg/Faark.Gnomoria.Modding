@@ -1,8 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Windows.Forms;
+using Mono.Cecil;
 
 namespace GnomoriaModUI
 {
@@ -34,9 +35,14 @@ namespace GnomoriaModUI
                 }
                 var cecil = Assembly.GetExecutingAssembly().GetManifestResourceStream( "GnomoriaModUI.Cecil.Mono.Cecil.dll");
                 var cecilRocks = Assembly.GetExecutingAssembly().GetManifestResourceStream( "GnomoriaModUI.Cecil.Mono.Cecil.Rocks.dll");
+
+                Debug.Assert(cecil != null, "cecil != null");
+                Debug.Assert(cecilRocks != null, "cecilRocks != null");
+
                 AppDomain.CurrentDomain.Load(new System.IO.BinaryReader(cecil).ReadBytes((int)cecil.Length));
                 AppDomain.CurrentDomain.Load(new System.IO.BinaryReader(cecilRocks).ReadBytes((int)cecilRocks.Length));
-                AppDomain.CurrentDomain.AssemblyResolve += new ResolveEventHandler(CurrentDomain_AssemblyResolve);
+                AppDomain.CurrentDomain.AssemblyResolve += CurrentDomain_AssemblyResolve;
+
                 switch (2)
                 {
                     case 0:
@@ -64,7 +70,7 @@ namespace GnomoriaModUI
             }
         }
 
-        static System.Reflection.Assembly CurrentDomain_AssemblyResolve(object sender, ResolveEventArgs args)
+        static Assembly CurrentDomain_AssemblyResolve(object sender, ResolveEventArgs args)
         {
             return AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(a => a.FullName == args.Name);
         }
