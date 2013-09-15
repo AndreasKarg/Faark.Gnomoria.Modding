@@ -72,7 +72,7 @@
     <Compile Include="Wip\Ideas\LargeStorageBox.cs" />
     <Compile Include="Done\MaximizeWindowButton.cs" />
     <Compile Include="Done\NextCharButtonInCharWindow.cs" />
-    <Compile Include="Done\ShowDeveloperConsol.cs" />
+    <Compile Include="Done\ShowDeveloperConsole.cs" />
     <Compile Include="Disabled\Trash\debug_skinload.cs" />
     <Compile Include="Done\AutoBackup.cs" />
     <Compile Include="Done\CustomFpsCounter.cs" />

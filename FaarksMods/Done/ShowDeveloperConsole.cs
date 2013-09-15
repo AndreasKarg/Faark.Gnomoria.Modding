@@ -1,14 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Reflection;
 using Faark.Gnomoria.Modding;
 using Game;
 using Game.GUI;
-using Game.GUI.Controls;
-using GameLibrary;
-using Faark.Util;
 using Microsoft.Xna.Framework;
 
 namespace Faark.Gnomoria.Mods
@@ -26,6 +21,7 @@ namespace Faark.Gnomoria.Mods
                 return "Faark";
             }
         }
+
         public override string Name
         {
             get
@@ -33,6 +29,7 @@ namespace Faark.Gnomoria.Mods
                 return "Show Developer Tools";
             }
         }
+
         public override string Description
         {
             get
@@ -40,6 +37,7 @@ namespace Faark.Gnomoria.Mods
                 return "Allows you to show the games own, though every limited developer console as well as an UI to spawn items. Use it at your own risk.";
             }
         }
+
         public override IEnumerable<IModification> Modifications
         {
             get
@@ -47,6 +45,7 @@ namespace Faark.Gnomoria.Mods
                 yield break;
             }
         }
+
         public override IEnumerable<ModDependency> Dependencies
         {
             get
@@ -54,38 +53,41 @@ namespace Faark.Gnomoria.Mods
                 yield return Modding.HelperMods.ModRightClickMenu.Instance;
             }
         }
+
         public override void Initialize_PreGeneration()
         {
             Modding.HelperMods.ModRightClickMenu.AddItem("Toggle Developer Console", ToggleDeveloperConsole);
             Modding.HelperMods.ModRightClickMenu.AddItem("Item spawn menu", ItemSpawnMenu);
             base.Initialize_PreGeneration();
         }
-        private static ConsoleWindow console;
+
+        private static ConsoleWindow _console;
         public static void ToggleDeveloperConsole()
         {
-            if ((console != null) && GnomanEmpire.Instance.GuiManager.Manager.Controls.Contains(console))
+            if ((_console != null) && GnomanEmpire.Instance.GuiManager.Manager.Controls.Contains(_console))
             {
-                GnomanEmpire.Instance.GuiManager.Remove(console);
-                console = null;
+                GnomanEmpire.Instance.GuiManager.Remove(_console);
+                _console = null;
             }
             else
             {
-                GnomanEmpire.Instance.GuiManager.Add(console = new ConsoleWindow(GnomanEmpire.Instance.GuiManager.Manager));
+                GnomanEmpire.Instance.GuiManager.Add(_console = new ConsoleWindow(GnomanEmpire.Instance.GuiManager.Manager));
             }
         }
+
         public static void ItemSpawnMenu() 
         {
-            var pos = (Vector3)typeof(Game.GUI.RightClickMenu)
+            var pos = (Vector3)typeof(RightClickMenu)
                 .GetFields(BindingFlags.Instance | BindingFlags.NonPublic)
                 .Single(f => f.FieldType == typeof(Vector3))
                 .GetValue(
-                    typeof(Game.GUI.HUD)
+                    typeof(HUD)
                         .GetFields(BindingFlags.NonPublic | BindingFlags.Instance)
-                        .Single(f => f.FieldType == typeof(Game.GUI.RightClickMenu))
+                        .Single(f => f.FieldType == typeof(RightClickMenu))
                         .GetValue(
-                            typeof(Game.GUI.InGameHUD)
+                            typeof(InGameHUD)
                                 .GetFields(BindingFlags.NonPublic| BindingFlags.Instance)
-                                .Single(f => f.FieldType == typeof(Game.GUI.HUD))
+                                .Single(f => f.FieldType == typeof(HUD))
                                 .GetValue(GnomanEmpire.Instance.GuiManager.HUD)
                         )
                 );
