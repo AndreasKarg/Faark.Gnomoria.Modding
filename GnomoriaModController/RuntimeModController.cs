@@ -1,10 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Reflection;
-using System.Runtime.Serialization;
-using System.Xml.Serialization;
+using System.Threading.Tasks;
 using Faark.Util;
 
 namespace Faark.Gnomoria.Modding
@@ -14,8 +12,9 @@ namespace Faark.Gnomoria.Modding
     public static class RuntimeModController
     {
 
-        private static List<IMod> active_mods;
-        private static ModSaveFile modSaveFile;
+        private static List<IMod> _activeMods;
+        private static ModSaveFile _modSaveFile;
+
         public static void Initialize(string[] args)
         {
             ModEnvironment.Status = ModEnvironment.EnvironmentStatus.InGame;
@@ -37,24 +36,27 @@ namespace Faark.Gnomoria.Modding
             var loadAssemblys = !args.Contains("-noassemblyloading");
             try
             {
-                active_mods = new List<IMod>();
-                var loaded_modfiles = new List<string>();
+                _activeMods = new List<IMod>();
+
+                var loadedModfiles = new List<string>();
                 var config = ModEnvironmentConfiguration.Load(new System.IO.FileInfo("GnomoriaModConfig.xml"));
+
                 foreach (var modRef in config.ModReferences)
                 {
-                    if (!loaded_modfiles.Contains(modRef.AssemblyFile.FullName))
+                    if (loadedModfiles.Contains(modRef.AssemblyFile.FullName)) continue;
+
+                    if (loadAssemblys)
                     {
-                        if (loadAssemblys)
-                        {
-                            Assembly.LoadFrom(modRef.AssemblyFile.FullName);
-                        }
-                        else
-                        {
-                            Type.GetType(modRef.TypeName);
-                        }
-                        loaded_modfiles.Add(modRef.AssemblyFile.FullName);
+                        Assembly.LoadFrom(modRef.AssemblyFile.FullName);
                     }
+                    else
+                    {
+                        // Todo: What is it good for?
+                        Type.GetType(modRef.TypeName);
+                    }
+                    loadedModfiles.Add(modRef.AssemblyFile.FullName);
                 }
+
                 foreach (var modRef in config.ModReferences)
                 {
                     var mod = ModEnvironment.Mods[modRef];
@@ -63,7 +65,7 @@ namespace Faark.Gnomoria.Modding
                         mod.SetupData = modRef.SetupData;
                     }
                     mod.Initialize_PreGame();
-                    active_mods.Add(mod);
+                    _activeMods.Add(mod);
                 }
             }
             catch (Exception err)
@@ -87,65 +89,71 @@ namespace Faark.Gnomoria.Modding
             */
             //LoadMod(new DemoMod().GetConfig());
         }
+
         public static IEnumerable<IMod> ActiveMods
         {
             get
             {
-                return active_mods;
+                return _activeMods;
             }
         }
 
         public static void PreSaveHook(Game.GnomanEmpire self, bool fallenKingdom)
         {
-            foreach (var mod in active_mods)
+            foreach (var mod in _activeMods)
             {
-                mod.PreGameSaved(modSaveFile.GetDataFor(mod));
+                mod.PreGameSaved(_modSaveFile.GetDataFor(mod));
             }
         }
-        public static System.Threading.Tasks.Task PostSaveHook(System.Threading.Tasks.Task saveTask, Game.GnomanEmpire self, bool fallenKingdom)
+
+        public static Task PostSaveHook(Task saveTask, Game.GnomanEmpire self, bool fallenKingdom)
         {
-            return saveTask.ContinueWith((task) =>
+            return saveTask.ContinueWith(task =>
             {
-                foreach (var mod in active_mods)
+                foreach (var mod in _activeMods)
                 {
-                    mod.AfterGameSaved(modSaveFile.GetDataFor(mod));
+                    mod.AfterGameSaved(_modSaveFile.GetDataFor(mod));
                 }
                 var path = fallenKingdom ? Game.GnomanEmpire.SaveFolderPath("OldWorlds\\") : Game.GnomanEmpire.SaveFolderPath("Worlds\\");
                 // Todo: fallen kingdoms not considered with filename and so on!
                 var file = System.IO.Path.Combine(path, self.CurrentWorld + ".msv");
-                modSaveFile.SaveTo(new System.IO.FileInfo(file));
+                _modSaveFile.SaveTo(new System.IO.FileInfo(file));
             });
         }
+
         public static void PreLoadHook(Game.GnomanEmpire self, string fileName, bool fallenKingdom)
         {
             var dir = fallenKingdom ? Game.GnomanEmpire.SaveFolderPath("OldWorlds\\") : Game.GnomanEmpire.SaveFolderPath("Worlds\\");
             var file = System.IO.Path.Combine(dir, fileName + ".msv");
-            modSaveFile = ModSaveFile.LoadFrom(new System.IO.FileInfo(file));
-            foreach (var mod in active_mods)
+            _modSaveFile = ModSaveFile.LoadFrom(new System.IO.FileInfo(file));
+            foreach (var mod in _activeMods)
             {
-                mod.PreGameLoaded(modSaveFile.GetDataFor(mod));
+                mod.PreGameLoaded(_modSaveFile.GetDataFor(mod));
             }
         }
+
         public static void PostLoadHook(Game.GnomanEmpire self, string fileName, bool fallenKingdom)
         {
-            foreach (var mod in active_mods)
+            foreach (var mod in _activeMods)
             {
-                mod.AfterGameLoaded(modSaveFile.GetDataFor(mod));
+                mod.AfterGameLoaded(_modSaveFile.GetDataFor(mod));
             }
         }
+
         public static void PreCreateHook(Game.Map self, Game.CreateWorldOptions options)
         {
-            modSaveFile = new ModSaveFile();
-            foreach (var mod in active_mods)
+            _modSaveFile = new ModSaveFile();
+            foreach (var mod in _activeMods)
             {
-                mod.PreWorldCreation(modSaveFile.GetDataFor(mod), self, options);
+                mod.PreWorldCreation(_modSaveFile.GetDataFor(mod), self, options);
             }
         }
+
         public static void PostCreateHook(Game.Map self, Game.CreateWorldOptions options)
         {
-            foreach (var mod in active_mods)
+            foreach (var mod in _activeMods)
             {
-                mod.PostWorldCreation(modSaveFile.GetDataFor(mod), self, options);
+                mod.PostWorldCreation(_modSaveFile.GetDataFor(mod), self, options);
             }
         }
 
@@ -165,20 +173,23 @@ namespace Faark.Gnomoria.Modding
                 Screen = 0x2,
                 Both = 0x3
             };
-            private static TargetModes mTarget = TargetModes.Both;
+
+            private static TargetModes _target = TargetModes.Both;
+
             public static TargetModes Target
             {
                 get
                 {
-                    return mTarget;
+                    return _target;
                 }
                 set
                 {
                     if (value == TargetModes.UseGlobalSetting)
                         return;
-                    mTarget = TargetModes.Both;
+                    _target = TargetModes.Both;
                 }
             }
+
             /// <summary>
             /// This stuff is not yet implemented!
             /// </summary>
@@ -190,10 +201,11 @@ namespace Faark.Gnomoria.Modding
             {
                 return new System.IO.FileInfo(System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), LogfileName));
             }
+
             public static System.IO.FileInfo GetGameLogfile()
             {
                 var assembly = Assembly.GetAssembly(typeof(Game.GUI.Controls.Manager));
-                string path = Game.GnomanEmpire.SaveFolderPath(null) + System.IO.Path.GetFileNameWithoutExtension(assembly.Location) + ".log";
+                string path = Game.GnomanEmpire.SaveFolderPath() + System.IO.Path.GetFileNameWithoutExtension(assembly.Location) + ".log";
                 return new System.IO.FileInfo(path);
             }
 
@@ -201,40 +213,41 @@ namespace Faark.Gnomoria.Modding
             {
                 return (obj == null) ? "-null-" : obj.ToString();
             }
-            private static string ObjectContentToStringOrType<T>(T obj)
+
+            private static string ObjectContentToStringOrType<T>(T obj) where T: class
             {
                 if (obj != null)
                 {
                     return obj.ToString();
                 }
-                else
-                {
-                    return "-null- (" + typeof(T).FullName + ")";
-                }
+                
+                return "-null- (" + typeof(T).FullName + ")";
             }
+
             private static string ObjectToString(object obj)
             {
                 if (obj == null)
                     return "-null-";
-                else if (obj is string)
+                
+                if (obj is string)
                     return obj.ToString();
-                else if (obj.GetType().IsValueType)
+                
+                if (obj.GetType().IsValueType)
                     return obj.ToString();
-                else
-                {
-                    return obj.ToString() + "; Hash: " + obj.GetHashCode();
-                }
+                
+                return obj + "; Hash: " + obj.GetHashCode();
             }
 
-            private static object writeLock = new object();
-            private static bool supressWrite = false;
+            private static readonly object WriteLock = new object();
+            private static bool _supressWrite;
+
             private static void DoWrite(string text, LogLevel level, TargetModes target)
             {
-                lock (writeLock)
+                lock (WriteLock)
                 {
-                    if (supressWrite)
+                    if (_supressWrite)
                         return;
-                    supressWrite = true;
+                    _supressWrite = true;
                     target = target == TargetModes.UseGlobalSetting ? Target : target;
                     if (target.HasFlag(TargetModes.File))
                     {
@@ -242,8 +255,12 @@ namespace Faark.Gnomoria.Modding
                         {
                             System.IO.File.AppendAllText(GetLogfile().FullName, text);
                         }
-                        catch (Exception) { }
+                        catch (Exception)
+                        {
+                            // Todo: Do something meaningful here.
+                        }
                     }
+
                     if (target.HasFlag(TargetModes.Screen))
                     {
                         try
@@ -272,16 +289,20 @@ namespace Faark.Gnomoria.Modding
                                 }
                             }
                         }
-                        catch (Exception) { }
+                        catch (Exception)
+                        {
+                            // Todo: Do something meaningful here.
+                        }
                     }
-                    supressWrite = false;
+
+                    _supressWrite = false;
                 }
             }
 
             public static void Write(IEnumerable<String> lines, LogLevel level = LogLevel.Normal, TargetModes target = TargetModes.UseGlobalSetting )
             {
                 DoWrite(
-                    "Date: " + DateTime.Now.ToString() 
+                    "Date: " + DateTime.Now 
                     + Environment.NewLine
                     + String.Join(Environment.NewLine, lines) 
                     + Environment.NewLine
@@ -290,22 +311,26 @@ namespace Faark.Gnomoria.Modding
                     target
                     );
             }
+
             public static void Write(LogLevel level = LogLevel.Normal, TargetModes target = TargetModes.UseGlobalSetting, params string[] texts)
             {
-                Write((IEnumerable<string>)texts, level, target);
+                Write(texts, level, target);
             }
+
             public static void Write(params string[] texts)
             {
                 Write((IEnumerable<string>)texts);
             }
+
             public static void Write(string text, LogLevel level = LogLevel.Normal, TargetModes target = TargetModes.UseGlobalSetting)
             {
                 Write(text.Yield(), level, target);
             }
-            private static Exception lastException;
+
+            private static Exception _lastException;
             public static void Write(string preText, Exception err, LogLevel level = LogLevel.Normal, TargetModes target = TargetModes.UseGlobalSetting)
             {
-                lastException = err;
+                _lastException = err;
                 string errText;
                 try
                 {
@@ -324,27 +349,32 @@ namespace Faark.Gnomoria.Modding
                 }
                 Write((preText == null ? "" : preText + " ") + errText, level, target);
             }
+
             public static void Write(Exception err, LogLevel level = LogLevel.Normal, TargetModes target = TargetModes.UseGlobalSetting)
             {
-                if (SuppressDoubleExceptions && (err == lastException))
+                if (SuppressDoubleExceptions && (err == _lastException))
                 {
                     return;
                 }
-                lastException = err;
-                Write((string)null, err /*ObjectContentToStringOrType(err)*/, level, target);
+                _lastException = err;
+                Write(null, err /*ObjectContentToStringOrType(err)*/, level, target);
             }
+
             public static void Write(params object[] what)
             {
-                Write(what.Select(el => ObjectToString(el)));
+                Write(what.Select(ObjectToString));
             }
+
             public static void Write(LogLevel level = LogLevel.Normal, TargetModes target = TargetModes.UseGlobalSetting, params object[] what)
             {
-                Write(what.Select(el => ObjectToString(el)), level, target);
+                Write(what.Select(ObjectToString), level, target);
             }
+
             public static void WriteList<T>(IEnumerable<T> collection, LogLevel level = LogLevel.Normal, TargetModes target = TargetModes.UseGlobalSetting)
             {
                 var list = collection as IList<T>;
                 var pre = new List<String>(1);
+
                 if (list == null)
                 {
                     pre.Add("Enumeration<" + typeof(T).FullName + ">: " + ObjectContentToString(collection));
@@ -353,13 +383,14 @@ namespace Faark.Gnomoria.Modding
                 {
                     pre.Add("List<" + typeof(T).FullName + ">: " + ObjectContentToString(collection));
                 }
+
                 Write(collection == null ? pre : pre.Union(collection.Select(el => "> " + ObjectToString(el))), level, target);
             }
+
             public static void WriteText(string text, LogLevel level, TargetModes target)
             {
                 DoWrite(text + Environment.NewLine, level, target);
             }
-
 
             /*
             public static void WriteLog(Exception err)
