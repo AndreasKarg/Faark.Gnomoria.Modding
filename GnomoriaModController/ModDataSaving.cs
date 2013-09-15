@@ -1,8 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
-using System.Text;
-using System.Xml.Serialization;
 using System.Xml.Linq;
 using System.Runtime.Serialization;
 using System.IO;
@@ -16,9 +15,9 @@ namespace Faark.Gnomoria.Modding
         /// </summary>
         private class DataItem
         {
-            public string key;
-            public object value;
-            public bool isInvalid = false;
+            public readonly string Key;
+            public readonly object Value;
+            public readonly bool IsInvalid;
             /*
             public void GetObjectData(SerializationInfo info, StreamingContext context)
             {
@@ -45,44 +44,49 @@ namespace Faark.Gnomoria.Modding
                 value = info.GetValue("Value", Type.GetType(type));
             }
              */
+
             public DataItem(string k, object v)
             {
-                key = k;
-                value = v;
+                Key = k;
+                Value = v;
             }
+
             public DataItem(XElement el)
             {
                 try
                 {
                     // Todo: handle invalid data properly!!
-                    key = el.Attribute("Key").Value;
+                    Key = el.Attribute("Key").Value;
                     var type = Type.GetType(el.Attribute("Type").Value, true);
                     //if( type.IsPrimitive )
                     // TODO: Complete member initialization#
                     var dcs = new DataContractSerializer(type, null, int.MaxValue, false, false, null, ModSaveFile.GetDataContractResolver());
                     var tmpReader = el.CreateReader();
                     tmpReader.MoveToContent();
-                    value = dcs.ReadObject(tmpReader, false);
+                    Value = dcs.ReadObject(tmpReader, false);
                 }
                 catch (Exception)
                 {
-                    isInvalid = true;
+                    IsInvalid = true;
                 }
-                return;
             }
+
             public void WriteSaveData(System.Xml.XmlWriter writer)
             {
                 //We simply skip null values;
-                if (value == null)
+                if (Value == null)
                     return;
 
                 writer.WriteStartElement("Data");
-                writer.WriteAttributeString("Key", key);
-                // Todo: does this create a security hole? Though mods can do everything anyway, this may abuse a mod to do sth harmful. Consider it!
-                writer.WriteAttributeString("Type", value.GetType().AssemblyQualifiedName);
+                writer.WriteAttributeString("Key", Key);
 
-                var dcs = new DataContractSerializer(value.GetType(), "", "", null, Int32.MaxValue, false, false, null, ModSaveFile.GetDataContractResolver());
-                dcs.WriteObjectContent(writer, value);
+                // Todo: does this create a security hole? Though mods can do everything anyway, this may abuse a mod to do sth harmful. Consider it!
+                var assemblyQualifiedName = Value.GetType().AssemblyQualifiedName;
+                Debug.Assert(assemblyQualifiedName != null, "assemblyQualifiedName != null");
+                writer.WriteAttributeString("Type", assemblyQualifiedName);
+
+                var dcs = new DataContractSerializer(Value.GetType(), "", "", null, Int32.MaxValue, false, false, null, ModSaveFile.GetDataContractResolver());
+                dcs.WriteObjectContent(writer, Value);
 
                 //var dcjs = new System.Runtime.Serialization.Json.DataContractJsonSerializer(value.GetType()
 
@@ -90,9 +94,9 @@ namespace Faark.Gnomoria.Modding
             }
         }
 
-        Dictionary<String, DataItem> data = new Dictionary<string, DataItem>();
-        bool hasData = false;
-        private XElement unserializedData = null;
+        private readonly Dictionary<String, DataItem> _data = new Dictionary<string, DataItem>();
+        private bool _hasData;
+        private readonly XElement _unserializedData;
         /*//[DataMember(Name = "Data")]
         private msd_dataItem[] serializableData
         {
@@ -117,34 +121,35 @@ namespace Faark.Gnomoria.Modding
         {
             get
             {
-                return hasData;
+                return _hasData;
             }
         }
+
         public bool HasData(string key)
         {
-            return data.ContainsKey(key) && !data[key].isInvalid;
+            return _data.ContainsKey(key) && !_data[key].IsInvalid;
         }
+
         public object this[string key]
         {
             get
             {
                 DataItem di;
-                if (data.TryGetValue(key, out di))
+                if (_data.TryGetValue(key, out di))
                 {
-                    return di.value;
+                    return di.Value;
                 }
-                else
-                {
-                    throw new ArgumentException("No data found for key [" + key + "]");
-                }
+
+                throw new ArgumentException("No data found for key [" + key + "]");
             }
             set
             {
                 var di = new DataItem(key, value);
-                data[di.key] = di;
-                hasData = true;
+                _data[di.Key] = di;
+                _hasData = true;
             }
         }
+
         public T GetData<T>(string key)
         {
             var val = this[key];
@@ -152,22 +157,15 @@ namespace Faark.Gnomoria.Modding
             {
                 return (T)val;
             }
-            else
-            {
-                throw new Exception("Data [" + key + "] is not of type [" + typeof(T).ToString() + "], not [" + ((val == null) ? "NULL" : val.GetType().ToString()) + "]");
-            }
+
+            throw new Exception("Data [" + key + "] is not of type [" + typeof(T) + "], not [" + ((val == null) ? "NULL" : val.GetType().ToString()) + "]");
         }
+
         public T GetData<T>(string key, T def)
         {
-            if (HasData(key))
-            {
-                return GetData<T>(key);
-            }
-            else
-            {
-                return def;
-            }
+            return HasData(key) ? GetData<T>(key) : def;
         }
+
         public void GetData<T>(string key, Action<T> to, T def = default(T))
         {
             if (HasData(key))
@@ -179,36 +177,42 @@ namespace Faark.Gnomoria.Modding
                 to(def);
             }
         }
+
         public String GetString(string key)
         {
             return GetData<string>(key);
         }
+
         public String GetString(string key, String def)
         {
-            return GetData<string>(key, def);
+            return GetData(key, def);
         }
+
         public void SetData<T>(string key, T data)
         {
             this[key] = data;
         }
+
         public void SetString(string key, string value)
         {
             SetData(key, value);
         }
+
         public void ClearData(string key)
         {
-            data.Remove(key);
-            hasData = data.Count > 0;
+            _data.Remove(key);
+            _hasData = _data.Count > 0;
         }
 
         //[DataMember(Name="ModType")]
         public String ModType { get; private set; }
         public IMod LoadedMod { get; private set; }
+
         public bool IsModLoaded
         {
             get { return LoadedMod != null; }
         }
-        
+
 
         /*
         public void GetObjectData(SerializationInfo info, StreamingContext context)
@@ -223,7 +227,7 @@ namespace Faark.Gnomoria.Modding
             ModType = mod.GetType().FullName;
             LoadedMod = mod;
         }
-        
+
 
 
         /*
@@ -243,41 +247,42 @@ namespace Faark.Gnomoria.Modding
         }
         */
 
-        public ModSaveData(XElement md_el)
+        public ModSaveData(XElement modElement)
         {
-            ModType = md_el.Attribute("ModType").Value;
+            ModType = modElement.Attribute("ModType").Value;
             LoadedMod = RuntimeModController.ActiveMods.SingleOrDefault(mod => mod.GetType().FullName == ModType);
             if (IsModLoaded)
             {
-                foreach (var el in md_el.Elements("Data"))
+                foreach (var el in modElement.Elements("Data"))
                 {
                     var di = new DataItem(el);
-                    if (!di.isInvalid)
+                    if (!di.IsInvalid)
                     {
-                        data.Add(di.key, di);
+                        _data.Add(di.Key, di);
                     }
                 }
             }
             else
             {
-                unserializedData = new XElement(md_el);
+                _unserializedData = new XElement(modElement);
             }
         }
+
         public void WriteSaveData(System.Xml.XmlWriter writer)
         {
             if (IsModLoaded)
             {
                 writer.WriteStartElement("Mod");
                 writer.WriteAttributeString("ModType", ModType);
-                foreach (var data_el in data)
+                foreach (var dataElement in _data)
                 {
-                    data_el.Value.WriteSaveData(writer);
+                    dataElement.Value.WriteSaveData(writer);
                 }
                 writer.WriteEndElement();
             }
             else
             {
-                unserializedData.WriteTo(writer);
+                _unserializedData.WriteTo(writer);
             }
 
         }
@@ -288,42 +293,47 @@ namespace Faark.Gnomoria.Modding
     [DataContract]
     class ModSaveFile
     {
-        Dictionary<IMod, ModSaveData> modSaveData;
-        Dictionary<string, ModSaveData> unloadedSaveData;
-        List<ModSaveData> allSaveData;
+        Dictionary<IMod, ModSaveData> _modSaveData;
+        Dictionary<string, ModSaveData> _unloadedSaveData;
+        List<ModSaveData> _allSaveData;
 
         [DataMember(Name = "SavedModData")]
-        private ModSaveData[] allSavedDataAsArray
+        private ModSaveData[] AllSavedDataAsArray
         {
             get
             {
-                return allSaveData.Where(d => !d.IsModLoaded || d.HasAnyData).ToArray();
+                return _allSaveData.Where(d => !d.IsModLoaded || d.HasAnyData).ToArray();
             }
             set
             {
-                allSaveData = value.ToList();
-                modSaveData = new Dictionary<IMod, ModSaveData>();
-                unloadedSaveData = new Dictionary<string, ModSaveData>();
-                foreach (var el in allSaveData)
+                _allSaveData = value.ToList();
+                _modSaveData = new Dictionary<IMod, ModSaveData>();
+                _unloadedSaveData = new Dictionary<string, ModSaveData>();
+                foreach (var el in _allSaveData)
                 {
                     if (el.IsModLoaded)
-                        modSaveData.Add(el.LoadedMod, el);
+                        _modSaveData.Add(el.LoadedMod, el);
                     else
-                        unloadedSaveData.Add(el.ModType, el);
+                        _unloadedSaveData.Add(el.ModType, el);
                 }
             }
         }
+
         public ModSaveData GetDataFor(IMod mod)
         {
             ModSaveData result;
-            if (modSaveData.TryGetValue(mod, out result))
+            if (_modSaveData.TryGetValue(mod, out result))
             {
                 return result;
             }
             var textKey = mod.GetType().FullName;
-            if (unloadedSaveData.TryGetValue(textKey, out result))
+            if (_unloadedSaveData.TryGetValue(textKey, out result))
             {
-                throw new Exception("This should never happen!");
+// ReSharper disable HeuristicUnreachableCode
+                Debug.Fail("This should never happen!");
+                throw new InvalidOperationException("This should never happen!");
+// ReSharper restore HeuristicUnreachableCode
+
                 /*
                 #warning this should actually never happen anymore, since we look up existing mods while loading anyway.
                 unloadedSaveData.Remove(textKey);
@@ -332,49 +342,55 @@ namespace Faark.Gnomoria.Modding
                 */
             }
             result = new ModSaveData(mod);
-            modSaveData.Add(mod, result);
-            allSaveData.Add(result);
+            _modSaveData.Add(mod, result);
+            _allSaveData.Add(result);
             return result;
         }
 
         #region Initialization
         public void Init()
         {
-            modSaveData = new Dictionary<IMod, ModSaveData>();
-            unloadedSaveData = new Dictionary<string, ModSaveData>();
-            allSaveData = new List<ModSaveData>();
+            _modSaveData = new Dictionary<IMod, ModSaveData>();
+            _unloadedSaveData = new Dictionary<string, ModSaveData>();
+            _allSaveData = new List<ModSaveData>();
         }
+
         [OnDeserializing]
         public void Init(StreamingContext context)
         {
             Init();
         }
+
         internal ModSaveFile()
         {
             Init();
         }
         #endregion
+
         #region Actual serialization calls
         internal class ModDataContractResolver : DataContractResolver
         {
             private string typeToString(Type t)
             {
-                return System.Convert.ToBase64String(System.Text.ASCIIEncoding.ASCII.GetBytes(t.AssemblyQualifiedName)).Replace("=", "");
+                Debug.Assert(t.AssemblyQualifiedName != null, "t.AssemblyQualifiedName != null");
+                return Convert.ToBase64String(System.Text.Encoding.ASCII.GetBytes(t.AssemblyQualifiedName)).Replace("=", "");
             }
+
             private string stringToAQN(string text)
             {
                 while (text.Length % 4 != 0)
                 {
                     text = text + "=";
                 }
-                return System.Text.ASCIIEncoding.ASCII.GetString(System.Convert.FromBase64String(text));
+                return System.Text.Encoding.ASCII.GetString(Convert.FromBase64String(text));
             }
-            System.Xml.XmlDictionary dict = new System.Xml.XmlDictionary();
+
+            readonly System.Xml.XmlDictionary _dict = new System.Xml.XmlDictionary();
             public override Type ResolveName(string typeName, string typeNamespace, Type declaredType, DataContractResolver knownTypeResolver)
             {
                 try
                 {
-                    if (typeNamespace == (this.GetType().Namespace + ".Base64Encoded"))
+                    if (typeNamespace == (GetType().Namespace + ".Base64Encoded"))
                     {
                         var txt = stringToAQN(typeName);
                         var ttype = Type.GetType(txt, false);
@@ -382,9 +398,11 @@ namespace Faark.Gnomoria.Modding
                             return ttype;
                     }
                 }
-                catch (Exception)
+                catch (Exception) // Todo: Clean this up
                 {
                 }
+
+                // Todo: Find out what to do with that null parameter. (Which must not be null!)
                 return knownTypeResolver.ResolveName(typeName, typeNamespace, declaredType, null);// ?? AppDomain.CurrentDomain.GetAssemblies().SelectMany(ass => ass.GetTypes()).FirstOrDefault(t => t.Namespace == typeNamespace && t.Name == typeName);
                 // Todo: does this create a security hole? Though mods can do everything anyway, this may abuse a mod to do sth harmful. Consider it!
                 // for now i don't think so, since typeName has to be assignable to it. And object or whatsoever...
@@ -394,33 +412,33 @@ namespace Faark.Gnomoria.Modding
                 matches.Count();
                 throw new NotImplementedException();*/
             }
+
             public override bool TryResolveType(Type type, Type declaredType, DataContractResolver knownTypeResolver, out System.Xml.XmlDictionaryString typeName, out System.Xml.XmlDictionaryString typeNamespace)
             {
-                typeName = dict.Add(typeToString(type));
-                typeNamespace = dict.Add(this.GetType().Namespace + ".Base64Encoded");
+                typeName = _dict.Add(typeToString(type));
+                typeNamespace = _dict.Add(GetType().Namespace + ".Base64Encoded");
                 //typeNamespace = dict.Add(type.Namespace);
                 return true;
                 //throw new NotImplementedException();
             }
         }
-        private static ModDataContractResolver saveFileCtrRes = null;
+
+        private static ModDataContractResolver _saveFileCtrRes;
         internal static ModDataContractResolver GetDataContractResolver()
         {
-            if (saveFileCtrRes == null)
-            {
-                saveFileCtrRes = new ModDataContractResolver();
-            }
-            return saveFileCtrRes;
+            return _saveFileCtrRes ?? (_saveFileCtrRes = new ModDataContractResolver());
         }
-        private static DataContractSerializer saveFileDcs = null;
+
+        private static DataContractSerializer _saveFileDcs;
+
         internal static DataContractSerializer GetDataContractSerializer()
         {
-            if (saveFileDcs == null)
-            {
-                saveFileDcs = new DataContractSerializer(typeof(ModSaveFile), null, Int32.MaxValue, false, false, null, GetDataContractResolver());
-            }
-            return saveFileDcs;
+            if (_saveFileDcs != null) return _saveFileDcs;
+
+            _saveFileDcs = new DataContractSerializer(typeof(ModSaveFile), null, Int32.MaxValue, false, false, null, GetDataContractResolver());
+            return _saveFileDcs;
         }
+
         public static ModSaveFile LoadFrom(FileInfo fileName)
         {
             if (!fileName.Exists)
@@ -430,9 +448,17 @@ namespace Faark.Gnomoria.Modding
             }
 
             var doc = XDocument.Load(fileName.FullName);
-            var msf = new ModSaveFile();
-            msf.allSavedDataAsArray = doc.Element("ModSaveFile").Elements("Mod").Select(md => new ModSaveData(md)).ToArray();
-            return msf;
+            var saveFileElement = doc.Element("ModSaveFile");
+
+            Debug.Assert(saveFileElement != null, "doc has Element \"ModSaveFile\"");
+
+            var saveFile = new ModSaveFile
+            {
+                AllSavedDataAsArray =
+                    saveFileElement.Elements("Mod").Select(md => new ModSaveData(md)).ToArray()
+            };
+
+            return saveFile;
             /*
             var dcserializer = GetDataContractSerializer();
             //var serializer = new System.Xml.Serialization.XmlSerializer(typeof(ModEnvironmentConfiguration));
@@ -443,6 +469,7 @@ namespace Faark.Gnomoria.Modding
             }
             */
         }
+
         public void SaveTo(FileInfo filename)
         {
             //var dcs = GetDataContractSerializer();
@@ -453,8 +480,8 @@ namespace Faark.Gnomoria.Modding
                 {
                     writer.WriteStartDocument();
                     writer.WriteStartElement("ModSaveFile");
-                    writer.WriteAttributeString("Version", "1"); 
-                    foreach (var md in modSaveData)
+                    writer.WriteAttributeString("Version", "1");
+                    foreach (var md in _modSaveData)
                     {
                         if (md.Value.HasAnyData || !md.Value.IsModLoaded)
                         {
@@ -478,7 +505,7 @@ namespace Faark.Gnomoria.Modding
             {
                 filename.Delete();
             }
-            System.IO.File.Move(filename.FullName + ".temp", filename.FullName);
+            File.Move(filename.FullName + ".temp", filename.FullName);
         }
         #endregion
     }
