@@ -1,12 +1,9 @@
 ﻿
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Reflection;
 using System.Runtime.Serialization;
-using System.Xml.Serialization;
 using Faark.Util;
+using System.IO;
 
 namespace Faark.Gnomoria.Modding
 {
@@ -15,18 +12,18 @@ namespace Faark.Gnomoria.Modding
     {
 
         [DataMember(Name = "ModType")]
-        private String m_modTypeName;
-        private Type m_modType;
+        private String _modTypeName;
+        private Type _modType;
 
 
         public Type TryGetType()
         {
-            if (m_modType != null)
-                return m_modType;
-            if (m_modTypeName != null)
+            if (_modType != null)
+                return _modType;
+            if (_modTypeName != null)
             {
-                return m_modType = Type.GetType(
-                    m_modTypeName,
+                return _modType = Type.GetType(
+                    _modTypeName,
                     an => AppDomain.CurrentDomain.GetAssemblies().SingleOrDefault(la => la.FullName == an.FullName),
                     (a, tn, casesense) => a.GetType(tn, false, true),
                     false
@@ -39,12 +36,12 @@ namespace Faark.Gnomoria.Modding
         {
             get
             {
-                if (m_modType != null)
-                    return m_modType;
-                if (m_modTypeName != null)
+                if (_modType != null)
+                    return _modType;
+                if (_modTypeName != null)
                 {
-                    return m_modType = Type.GetType(
-                        m_modTypeName,
+                    return _modType = Type.GetType(
+                        _modTypeName,
                         an => AppDomain.CurrentDomain.GetAssemblies().SingleOrDefault(la => la.FullName == an.FullName),
                         (a, tn, casesense) => a.GetType(tn, false, true),
                         true
@@ -53,12 +50,13 @@ namespace Faark.Gnomoria.Modding
                 return null;
             }
         }
+
         public String TypeName
         {
             get
             {
                 var tryType = TryGetType();
-                return tryType != null ? tryType.AssemblyQualifiedName : m_modTypeName;
+                return tryType != null ? tryType.AssemblyQualifiedName : _modTypeName;
             }
         }
 
@@ -69,18 +67,21 @@ namespace Faark.Gnomoria.Modding
 
         public ModType(IMod mod)
         {
-            m_modType = mod.GetType();
-            m_modTypeName = TypeName;
+            _modType = mod.GetType();
+            _modTypeName = TypeName;
         }
+
         public ModType(string typeName)
         {
-            m_modTypeName = typeName;
+            _modTypeName = typeName;
         }
+
         public ModType(Type sysType)
         {
-            m_modType = sysType;
-            m_modTypeName = TypeName;
+            _modType = sysType;
+            _modTypeName = TypeName;
         }
+
         protected ModType() { }
 
         public static implicit operator ModType(Mod toCreateFrom)
@@ -93,31 +94,35 @@ namespace Faark.Gnomoria.Modding
     public class ModReference : ModType
     {
         [DataMember(Name = "Hash")]
-        private String m_dllHash;
+        private String _dllHash;
         [DataMember(Name = "AssemblyFileName")]
-        private String m_assemblyFileName;
+        private String _assemblyFileName;
         [DataMember(Name = "SetupData", EmitDefaultValue = false)]
-        private String m_setupData = null;
+        private String _setupData;
+
         public String Hash
         {
-            get { return m_dllHash; }
+            get { return _dllHash; }
         }
+
         public String AssemblyFileName
         {
-            get { return m_assemblyFileName; }
+            get { return _assemblyFileName; }
         }
-        public System.IO.FileInfo AssemblyFile
+
+        public FileInfo AssemblyFile
         {
             get
             {
-                return new System.IO.FileInfo(System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), m_assemblyFileName));
+                return new FileInfo(Path.Combine(Directory.GetCurrentDirectory(), _assemblyFileName));
             }
         }
+
         public String SetupData
         {
             get
             {
-                return m_setupData;
+                return _setupData;
             }
         }
 
@@ -125,20 +130,15 @@ namespace Faark.Gnomoria.Modding
         public ModReference(IMod mod)
             : base(mod)
         {
-            m_setupData = mod.SetupData;
-            m_dllHash = new System.IO.FileInfo(new System.Uri(Type.Assembly.CodeBase).LocalPath).GenerateMD5Hash();
+            _setupData = mod.SetupData;
+            _dllHash = new FileInfo(new Uri(Type.Assembly.CodeBase).LocalPath).GenerateMD5Hash();
             string refPath;
-            if (Faark.Util.FileExtensions.GetRelativePath(System.IO.Directory.GetCurrentDirectory(), Type.Assembly.CodeBase, out refPath))
-            {
-                m_assemblyFileName = refPath;
-            }
-            else
-            {
-                m_assemblyFileName = Type.Assembly.CodeBase;
-            }
+
+            bool pathFound = FileExtensions.GetRelativePath(Directory.GetCurrentDirectory(), Type.Assembly.CodeBase, out refPath);
+
+            _assemblyFileName = pathFound ? refPath : Type.Assembly.CodeBase;
         }
 
-        
         public static implicit operator ModReference(Mod toCreateFrom)
         {
             return new ModReference(toCreateFrom);
