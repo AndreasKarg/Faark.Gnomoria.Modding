@@ -1,11 +1,8 @@
 ﻿
 using System;
 using System.Collections.Generic;
+using System.Collections;
 using System.Linq;
-using System.Text;
-using System.Reflection;
-using System.Runtime.Serialization;
-using System.Xml.Serialization;
 using Faark.Util;
 
 namespace Faark.Gnomoria.Modding
@@ -24,33 +21,35 @@ namespace Faark.Gnomoria.Modding
         public class ModCollection : IEnumerable<IMod>
         {
 
-            private Dictionary<Type, IMod> loadedMods = new Dictionary<Type, IMod>();
+            private readonly Dictionary<Type, IMod> _loadedMods = new Dictionary<Type, IMod>();
 
             public IMod Get(ModType type)
             {
                 var sysType = type.Type;
                 IMod mod;
-                if (loadedMods.TryGetValue(sysType, out mod))
+                if (_loadedMods.TryGetValue(sysType, out mod))
                 {
                     return mod;
                 }
-                mod = loadedMods[sysType] = (IMod)Activator.CreateInstance(sysType);
+                mod = _loadedMods[sysType] = (IMod)Activator.CreateInstance(sysType);
                 return mod;
             }
+
             public T1 Get<T1>() where T1: IMod, new()
             {
                 IMod mod;
-                if (loadedMods.TryGetValue(typeof(T1), out mod))
+                if (_loadedMods.TryGetValue(typeof(T1), out mod))
                 {
                     return (T1)mod;
                 }
                 var newMod = new T1();
-                loadedMods[typeof(T1)] = newMod;
+                _loadedMods[typeof(T1)] = newMod;
                 return newMod;
             }
+
             public bool Has(ModType type)
             {
-                return loadedMods.ContainsKey(type.Type);
+                return _loadedMods.ContainsKey(type.Type);
             }
 
             public IMod this[ModType type]
@@ -60,6 +59,7 @@ namespace Faark.Gnomoria.Modding
                     return Get(type);
                 }
             }
+
             public IMod this[Type type]
             {
                 get
@@ -70,23 +70,22 @@ namespace Faark.Gnomoria.Modding
 
             public IEnumerator<IMod> GetEnumerator()
             {
-                foreach (var el in loadedMods)
-                {
-                    yield return el.Value;
-                }
+                // Todo: Find out whether this is equivalent to el.GetEnumerator()
+                return _loadedMods.Select(el => el.Value).GetEnumerator();
             }
-            System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+
+            IEnumerator IEnumerable.GetEnumerator()
             {
-                return this.GetEnumerator();
+                return GetEnumerator();
             }
         }
 
-        private static ModCollection mMods = new ModCollection();
+        private static readonly ModCollection _mods = new ModCollection();
         public static ModCollection Mods
         {
             get
             {
-                return mMods;
+                return _mods;
             }
         }
 
